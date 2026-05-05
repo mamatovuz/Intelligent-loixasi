@@ -10,7 +10,7 @@ const db = new Database(
 );
 
 const username = process.argv[2];
-const password = process.argv[3] || "";
+const password = process.argv[3];
 
 if (!username) {
   console.error("Usage: node src/reset-user-password.js <username> [password]");
