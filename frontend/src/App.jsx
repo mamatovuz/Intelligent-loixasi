@@ -361,6 +361,28 @@ function formatMoney(value) {
 	return `${Number(value || 0).toLocaleString('ru-RU')} UZS`
 }
 
+const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api')
+	.replace(/\/api\/?$/, '')
+	.replace(/\/$/, '')
+
+function resolveAssetUrl(value = '') {
+	if (!value) return ''
+	if (value.startsWith('data:') || value.startsWith('blob:')) return value
+	if (value.startsWith('/uploads/')) return `${API_ORIGIN}${value}`
+	if (value.startsWith('http://') || value.startsWith('https://')) {
+		try {
+			const url = new URL(value)
+			if (['localhost', '127.0.0.1'].includes(url.hostname)) {
+				return `${API_ORIGIN}${url.pathname}`
+			}
+			return value
+		} catch {
+			return value
+		}
+	}
+	return value
+}
+
 function getPaymentMethodMeta(method = '') {
 	const normalized = String(method || '').trim().toLowerCase()
 	if (normalized === 'manual' || normalized === 'cash' || normalized === 'naqd') {
@@ -792,7 +814,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 						</div>
 						<div className='user-avatar'>
 							{user.profileImage ? (
-								<img src={user.profileImage} alt={user.fullName} />
+								<img src={resolveAssetUrl(user.profileImage)} alt={user.fullName} />
 							) : (
 								getInitials(user.fullName)
 							)}
@@ -1854,7 +1876,7 @@ function DevelopersPage() {
 					{developers.map(developer => (
 						<Link key={developer.slug} to={`/dasturchilar/${developer.slug}`} className='developer-card'>
 							<div className='developer-avatar'>
-								{developer.image ? <img src={developer.image} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
+										{developer.image ? <img src={resolveAssetUrl(developer.image)} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
 							</div>
 							<div className='developer-card-copy'>
 								<div className='developer-card-top'>
@@ -1892,9 +1914,9 @@ function DeveloperDetailPage() {
 	return (
 		<div className='marketing-page developers-standalone-page'>
 			<main className='marketing-main developer-detail-page'>
-				<section className='developer-hero' style={developer.bannerImage ? { backgroundImage: `linear-gradient(rgba(10,23,62,.65), rgba(10,23,62,.65)), url(${developer.bannerImage})` } : undefined}>
+				<section className='developer-hero' style={developer.bannerImage ? { backgroundImage: `linear-gradient(rgba(10,23,62,.65), rgba(10,23,62,.65)), url(${resolveAssetUrl(developer.bannerImage)})` } : undefined}>
 					<div className='developer-hero-avatar'>
-						{developer.image ? <img src={developer.image} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
+						{developer.image ? <img src={resolveAssetUrl(developer.image)} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
 					</div>
 					<div className='developer-hero-copy'>
 						<Badge tone='success'>{developer.roleTitle}</Badge>
@@ -1925,7 +1947,7 @@ function DeveloperDetailPage() {
 					{developer.certificateImage ? (
 						<div className='card developer-certificate-card'>
 							<h3>Sertifikat</h3>
-							<img src={developer.certificateImage} alt='Sertifikat' />
+							<img src={resolveAssetUrl(developer.certificateImage)} alt='Sertifikat' />
 						</div>
 					) : null}
 				</section>

@@ -69,7 +69,7 @@ function persistProfileImage(profileImage) {
   const fileName = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const filePath = path.join(uploadsDir, fileName);
   fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
-  return `${config.appUrl}/uploads/${fileName}`;
+  return `/uploads/${fileName}`;
 }
 
 function mapDeveloperRow(row) {
