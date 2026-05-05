@@ -6,7 +6,9 @@ import { getDb } from "./db.js";
 import { config } from "./config.js";
 
 const db = getDb();
-const uploadsDir = path.resolve("backend", "uploads");
+const uploadsDir = config.storagePath
+  ? path.resolve(config.storagePath, "uploads")
+  : path.resolve("uploads");
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -67,7 +69,7 @@ function persistProfileImage(profileImage) {
   const fileName = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const filePath = path.join(uploadsDir, fileName);
   fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
-  return `http://localhost:${config.port}/uploads/${fileName}`;
+  return `${config.appUrl}/uploads/${fileName}`;
 }
 
 function mapDeveloperRow(row) {

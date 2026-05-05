@@ -3,8 +3,11 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
+import { config } from "./config.js";
 
-const dataDir = path.resolve("backend", "data");
+const dataDir = config.storagePath
+  ? path.resolve(config.storagePath, "data")
+  : path.resolve("data");
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });

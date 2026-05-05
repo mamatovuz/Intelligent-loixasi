@@ -1,8 +1,13 @@
 import path from "node:path";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
+import { config } from "./config.js";
 
-const db = new Database(path.resolve("backend", "data", "intelligent.db"));
+const db = new Database(
+  config.storagePath
+    ? path.resolve(config.storagePath, "data", "intelligent.db")
+    : path.resolve("data", "intelligent.db")
+);
 
 const username = process.argv[2];
 const password = process.argv[3] || "12345678";
