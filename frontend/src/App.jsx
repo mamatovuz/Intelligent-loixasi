@@ -5368,13 +5368,26 @@ function AppInner() {
 	const [meta, setMeta] = useState(null)
 
 	useEffect(() => {
-		if (auth?.token) return
 		const params = new URLSearchParams(location.search)
 		const studentToken = params.get('studentToken')
 		if (!studentToken) return
 		const next = params.get('next')
 		const redirectPath =
 			next && next.startsWith('/student/') ? next : '/student/dashboard'
+		const isSameStudentSession =
+			auth?.token === studentToken && auth?.user?.role === 'student'
+
+		if (isSameStudentSession) {
+			if (
+				location.pathname === '/' ||
+				location.pathname === '/student/login' ||
+				location.pathname === '/register'
+			) {
+				navigate(redirectPath, { replace: true })
+			}
+			return
+		}
+
 		const nextAuth = {
 			token: studentToken,
 			user: { role: 'student' },
