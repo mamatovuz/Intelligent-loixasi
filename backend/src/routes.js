@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import bcrypt from "bcryptjs";
 import { authenticate, authorize, comparePassword, getUserProfile, signToken } from "./auth.js";
 import { config } from "./config.js";
+import { sendTelegramCodeToStudent } from "./bot.js";
 import { buildDirectorPdfReport, buildDirectorWorkbook } from "./reports.js";
 import {
   addStudent,
@@ -174,16 +175,21 @@ router.post("/auth/telegram/request", (req, res) => {
     return res.status(404).json({ message: "Student topilmadi" });
   }
 
-  res.json({
-    message: "Tasdiqlash kodi yaratildi. Kod bot orqali studentga yuboriladi.",
-    demoCode: data.code
+  sendTelegramCodeToStudent(data.telegramId, data.code, data.expiresAt).then((sent) => {
+    res.json({
+      message: sent
+        ? "Tasdiqlash kodi Telegram bot orqali yuborildi."
+        : "Tasdiqlash kodi yaratildi. Bot bog'lanmagan bo'lsa, kodni qo'lda yuboring.",
+      demoCode: sent ? null : data.code,
+      expiresAt: data.expiresAt
+    });
   });
 });
 
 router.post("/auth/telegram/verify", (req, res) => {
   const { code } = req.body;
   const link = db.prepare(`
-    SELECT s.user_id as userId, u.full_name as fullName
+    SELECT s.user_id as userId, u.full_name as fullName, tl.expires_at as expiresAt, tl.id
     FROM telegram_links tl
     JOIN students s ON s.id = tl.student_id
     JOIN users u ON u.id = s.user_id
@@ -194,6 +200,10 @@ router.post("/auth/telegram/verify", (req, res) => {
 
   if (!link) {
     return res.status(404).json({ message: "Kod noto'g'ri yoki eskirgan" });
+  }
+  if (link.expiresAt && dayjs(link.expiresAt).isBefore(dayjs())) {
+    db.prepare(`UPDATE telegram_links SET used = 1 WHERE id = ?`).run(link.id);
+    return res.status(400).json({ message: "Kod muddati tugagan" });
   }
 
   db.prepare(`UPDATE telegram_links SET used = 1 WHERE code = ?`).run(code);

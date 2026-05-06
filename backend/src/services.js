@@ -124,6 +124,16 @@ function addStudentHistory(studentId, actorUserId, action, title, details) {
   `).run(studentId, actorUserId || null, action, title, details || null, dayjs().format("YYYY-MM-DD HH:mm:ss"));
 }
 
+function countUnreadNotificationsForUser(userId) {
+  const row = db.prepare(`
+    SELECT COUNT(*) as count
+    FROM notifications
+    WHERE target_user_id = ?
+      AND status = 'unread'
+  `).get(userId);
+  return Number(row?.count || 0);
+}
+
 function getTrialProgress(studentId, enrolledAt) {
   const row = db.prepare(`
     SELECT COUNT(*) as count
@@ -845,6 +855,18 @@ export function getStudentDashboard(userId) {
   if (!profile) {
     return null;
   }
+  const lastAttendance = db.prepare(`
+    SELECT lesson_date as lessonDate, status
+    FROM attendance
+    WHERE student_id = ?
+    ORDER BY date(lesson_date) DESC
+    LIMIT 1
+  `).get(profile.id);
+
+  const nextPaymentDate = profile.status === "trial"
+    ? profile.paymentDueDate || getNthTrialLessonDate(profile.id, profile.enrolledAt, profile.trialRequired)
+    : profile.paymentDueDate;
+
   return {
     fullName: profile.fullName,
     status: profile.status,
@@ -855,7 +877,15 @@ export function getStudentDashboard(userId) {
     trialProgress: profile.trialProgress,
     trialRequired: profile.trialRequired,
     monthlyFee: profile.monthlyFee,
-    paymentDueDate: profile.paymentDueDate
+    paymentDueDate: profile.paymentDueDate,
+    nextPaymentDate: nextPaymentDate || null,
+    unreadNotifications: countUnreadNotificationsForUser(userId),
+    lastAttendance: lastAttendance
+      ? {
+          date: lastAttendance.lessonDate,
+          status: lastAttendance.status
+        }
+      : null
   };
 }
 
@@ -1236,14 +1266,25 @@ export function createTelegramLinkCode(phone) {
   }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
+  const now = dayjs();
+  const expiresAt = now.add(5, "minute").format("YYYY-MM-DD HH:mm:ss");
   db.prepare(`
-    INSERT INTO telegram_links (student_id, phone, code, used, created_at)
-    VALUES (?, ?, ?, 0, ?)
-  `).run(student.id, phone, code, dayjs().format("YYYY-MM-DD HH:mm:ss"));
+    UPDATE telegram_links
+    SET used = 1
+    WHERE student_id = ? AND used = 0
+  `).run(student.id);
+  db.prepare(`
+    INSERT INTO telegram_links (student_id, phone, code, expires_at, used, created_at)
+    VALUES (?, ?, ?, ?, 0, ?)
+  `).run(student.id, phone, code, expiresAt, now.format("YYYY-MM-DD HH:mm:ss"));
 
   return {
     studentId: student.id,
-    code
+    userId: student.userId,
+    fullName: student.fullName,
+    telegramId: student.telegramId || null,
+    code,
+    expiresAt
   };
 }
 
@@ -1259,6 +1300,10 @@ export function consumeTelegramCode(code, telegramId) {
   if (!link) {
     return null;
   }
+  if (link.expires_at && dayjs(link.expires_at).isBefore(dayjs())) {
+    db.prepare(`UPDATE telegram_links SET used = 1 WHERE id = ?`).run(link.id);
+    return null;
+  }
 
   const student = db.prepare(`
     SELECT s.id, s.user_id as userId, u.full_name as fullName
@@ -1271,6 +1316,35 @@ export function consumeTelegramCode(code, telegramId) {
   db.prepare(`UPDATE users SET telegram_id = ? WHERE id = ?`).run(String(telegramId), student.userId);
 
   return student;
+}
+
+export function listPendingTelegramNotifications() {
+  return db.prepare(`
+    SELECT
+      n.id,
+      n.type,
+      n.title,
+      n.message,
+      n.target_user_id as userId,
+      u.telegram_id as telegramId,
+      u.full_name as fullName
+    FROM notifications n
+    JOIN users u ON u.id = n.target_user_id
+    WHERE n.status = 'unread'
+      AND n.delivered_at IS NULL
+      AND u.telegram_id IS NOT NULL
+      AND n.target_user_id IS NOT NULL
+      AND u.role = 'student'
+    ORDER BY datetime(n.created_at) ASC
+  `).all();
+}
+
+export function markNotificationDelivered(notificationId) {
+  db.prepare(`
+    UPDATE notifications
+    SET delivered_at = COALESCE(delivered_at, ?)
+    WHERE id = ?
+  `).run(dayjs().format("YYYY-MM-DD HH:mm:ss"), notificationId);
 }
 
 export function listDebtors() {

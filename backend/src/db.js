@@ -96,6 +96,7 @@ export function migrate() {
       student_id INTEGER NOT NULL,
       phone TEXT NOT NULL,
       code TEXT NOT NULL,
+      expires_at TEXT,
       used INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       FOREIGN KEY(student_id) REFERENCES students(id)
@@ -124,6 +125,7 @@ export function migrate() {
       status TEXT NOT NULL DEFAULT 'unread',
       created_at TEXT NOT NULL,
       read_at TEXT,
+      delivered_at TEXT,
       FOREIGN KEY(target_user_id) REFERENCES users(id)
     );
 
@@ -208,7 +210,9 @@ export function migrate() {
     `ALTER TABLE students ADD COLUMN trial_required INTEGER NOT NULL DEFAULT 3`,
     `ALTER TABLE students ADD COLUMN payment_due_date TEXT`,
     `ALTER TABLE students ADD COLUMN is_registered INTEGER NOT NULL DEFAULT 0`,
-    `ALTER TABLE payments ADD COLUMN received_by_user_id INTEGER`
+    `ALTER TABLE payments ADD COLUMN received_by_user_id INTEGER`,
+    `ALTER TABLE telegram_links ADD COLUMN expires_at TEXT`,
+    `ALTER TABLE notifications ADD COLUMN delivered_at TEXT`
   ];
 
   for (const statement of alterStatements) {

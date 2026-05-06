@@ -429,6 +429,17 @@ function formatDateLabel(value = new Date()) {
 	}).format(value)
 }
 
+function formatShortDate(value) {
+	if (!value) return '-'
+	const date = value instanceof Date ? value : new Date(value)
+	if (Number.isNaN(date.getTime())) return value
+	return new Intl.DateTimeFormat('uz-UZ', {
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric',
+	}).format(date)
+}
+
 function formatPhoneInput(value = '') {
 	const digits = value.replace(/\D/g, '').slice(0, 12)
 	let normalized = digits
@@ -2250,16 +2261,53 @@ function StudentLoginPage({ onLogin }) {
 	}
 
 	return (
-		<div className='login-screen login-screen-admin'>
-			<main className='admin-login-wrap'>
-				<div className='admin-brand'>
-					<div className='admin-brand-icon'>
-						<Icon name='auto_stories' className='filled-icon' />
+		<div className='login-screen login-screen-admin student-auth-screen'>
+			<main className='student-auth-shell'>
+				<section className='student-auth-hero'>
+					<div className='admin-brand student-auth-brand'>
+						<div className='admin-brand-icon'>
+							<Icon name='auto_stories' className='filled-icon' />
+						</div>
+						<span className='admin-brand-text'>Intelligent</span>
 					</div>
-					<span className='admin-brand-text'>Intelligent</span>
-				</div>
+					<span className='student-auth-chip'>Student kabinet</span>
+					<h1>Dars, davomat va to'lovlaringiz bir joyda.</h1>
+					<p>
+						Kurs holati, oxirgi davomat, yaqin to'lov va bildirishnomalarni bitta
+						kabinetdan kuzating.
+					</p>
+					<div className='student-auth-feature-list'>
+						<div className='student-auth-feature'>
+							<div className='student-auth-feature-icon'>
+								<Icon name='event_available' />
+							</div>
+							<div>
+								<strong>Davomat nazorati</strong>
+								<span>Oxirgi darslar va 30 kunlik statistika</span>
+							</div>
+						</div>
+						<div className='student-auth-feature'>
+							<div className='student-auth-feature-icon'>
+								<Icon name='payments' />
+							</div>
+							<div>
+								<strong>To'lov eslatmalari</strong>
+								<span>Balans, qarz va yaqin payment sanasi</span>
+							</div>
+						</div>
+						<div className='student-auth-feature'>
+							<div className='student-auth-feature-icon'>
+								<Icon name='notifications' />
+							</div>
+							<div>
+								<strong>Telegram bilan bog'langan</strong>
+								<span>Bot ichidan kabinet va to'lov havolalari</span>
+							</div>
+						</div>
+					</div>
+				</section>
 
-				<div className='admin-login-card'>
+				<section className='admin-login-card student-auth-card'>
 					<div className='admin-login-copy'>
 						<h2>Xush kelibsiz!</h2>
 						<p>Student kabinetga telefon va parol bilan kiring.</p>
@@ -2272,7 +2320,7 @@ function StudentLoginPage({ onLogin }) {
 								<Icon name='call' className='admin-input-icon' />
 								<input
 									id='student-phone'
-									placeholder='+998932303410'
+									placeholder='+998 90 123 45 67'
 									value={studentForm.phone}
 									onChange={event =>
 										setStudentForm({
@@ -2291,7 +2339,7 @@ function StudentLoginPage({ onLogin }) {
 								<input
 									id='student-password'
 									type={showPassword ? 'text' : 'password'}
-									placeholder='********'
+									placeholder='Kamida 8 ta belgi'
 									value={studentForm.password}
 									onChange={event =>
 										setStudentForm({ ...studentForm, password: event.target.value })
@@ -2310,12 +2358,16 @@ function StudentLoginPage({ onLogin }) {
 							</div>
 						</div>
 
+						<div className='student-auth-hint'>
+							Qabulxona tomonidan yaratilgan telefon raqam va paroldan foydalaning.
+						</div>
+
 						<button className='admin-submit-btn' disabled={loading}>
-							{loading ? 'Kutilmoqda...' : 'Kirish'}
+							{loading ? 'Kabinet ochilmoqda...' : 'Student kabinetga kirish'}
 						</button>
 					</form>
 
-					<div className='login-help'>
+					<div className='login-help student-auth-footer'>
 						<p>
 							Registratsiya havolangiz bormi?{' '}
 							<Link to='/register' className='text-link'>
@@ -2323,7 +2375,7 @@ function StudentLoginPage({ onLogin }) {
 							</Link>
 						</p>
 					</div>
-				</div>
+				</section>
 			</main>
 		</div>
 	)
@@ -2470,15 +2522,38 @@ function StudentRegisterPage() {
 	}
 
 	return (
-		<div className='login-screen login-screen-admin'>
-			<main className='admin-login-wrap'>
-				<div className='admin-brand'>
-					<div className='admin-brand-icon'>
-						<Icon name='auto_stories' className='filled-icon' />
+		<div className='login-screen login-screen-admin student-auth-screen'>
+			<main className='student-auth-shell'>
+				<section className='student-auth-hero'>
+					<div className='admin-brand student-auth-brand'>
+						<div className='admin-brand-icon'>
+							<Icon name='auto_stories' className='filled-icon' />
+						</div>
+						<span className='admin-brand-text'>Intelligent</span>
 					</div>
-					<span className='admin-brand-text'>Intelligent</span>
-				</div>
-				<div className='admin-login-card'>
+					<span className='student-auth-chip accent'>QR registratsiya</span>
+					<h1>Faqat oldindan yaratilgan studentlar ro'yxatdan o'tadi.</h1>
+					<p>
+						Havola yoki QR kod orqali hisobingizni faollashtiring. Ism va familiya
+						bazadan olinadi, telefon raqam esa reception kiritgan ma'lumot bilan mos
+						bo'lishi kerak.
+					</p>
+					<div className='student-auth-steps'>
+						<div>
+							<strong>1. Token tekshiriladi</strong>
+							<span>Havola faqat bir marta va qisqa muddat ishlaydi.</span>
+						</div>
+						<div>
+							<strong>2. Telefon tasdiqlanadi</strong>
+							<span>Bazadagi raqam bilan mos kelmasa registratsiya rad etiladi.</span>
+						</div>
+						<div>
+							<strong>3. Kabinet faollashadi</strong>
+							<span>Parol saqlanadi va student kabinetga login qilasiz.</span>
+						</div>
+					</div>
+				</section>
+				<section className='admin-login-card student-auth-card'>
 					<div className='admin-login-copy'>
 						<h2>Ro'yxatdan o'tish</h2>
 						<p>Student kabinet uchun hisob yarating.</p>
@@ -2489,6 +2564,15 @@ function StudentRegisterPage() {
 						<div className='form-error'>Token topilmadi yoki yaroqsiz</div>
 					) : (
 						<form className='admin-login-form' onSubmit={handleSubmit}>
+							<div className='student-register-meta'>
+								<div className='student-register-chip'>
+									<Icon name='verified' />
+									<span>Token faol</span>
+								</div>
+								<div className='student-register-note'>
+									Telefon raqamingiz bazadagi raqam bilan bir xil bo'lishi kerak.
+								</div>
+							</div>
 							<div className='admin-field-group'>
 								<label>Ism</label>
 								<div className='admin-input-shell'>
@@ -2508,6 +2592,7 @@ function StudentRegisterPage() {
 								<div className='admin-input-shell'>
 									<Icon name='call' className='admin-input-icon' />
 									<input
+										placeholder='+998 90 123 45 67'
 										value={form.phone}
 										onChange={event =>
 											setForm({
@@ -2524,6 +2609,7 @@ function StudentRegisterPage() {
 									<Icon name='lock' className='admin-input-icon' />
 									<input
 										type={showPassword ? 'text' : 'password'}
+										placeholder='Kamida 8 ta belgi'
 										value={form.password}
 										onChange={event =>
 											setForm({ ...form, password: event.target.value })
@@ -2542,11 +2628,11 @@ function StudentRegisterPage() {
 								</div>
 							</div>
 							<button className='admin-submit-btn' disabled={submitting}>
-								{submitting ? 'Saqlanmoqda...' : "Ro'yxatdan o'tish"}
+								{submitting ? 'Hisob yaratilmoqda...' : "Ro'yxatdan o'tish"}
 							</button>
 						</form>
 					)}
-					<div className='login-help'>
+					<div className='login-help student-auth-footer'>
 						<p>
 							Hisobingiz bormi?{' '}
 							<Link to='/student/login' className='text-link'>
@@ -2554,9 +2640,29 @@ function StudentRegisterPage() {
 							</Link>
 						</p>
 					</div>
-				</div>
+				</section>
 			</main>
 		</div>
+	)
+}
+
+function StudentInsightCard({ icon, label, value, note, to, tone = 'default' }) {
+	return (
+		<section className={`student-insight-card ${tone}`}>
+			<div className='student-insight-head'>
+				<div className={`student-insight-icon ${tone}`}>
+					<Icon name={icon} />
+				</div>
+				<span>{label}</span>
+			</div>
+			<strong>{value}</strong>
+			<p>{note}</p>
+			{to ? (
+				<Link to={to} className='student-insight-link'>
+					Batafsil ko'rish
+				</Link>
+			) : null}
+		</section>
 	)
 }
 
@@ -2625,6 +2731,11 @@ function StudentDashboardPage({ token }) {
 		Number(profile.monthlyFee || 0) - Number(profile.balance || 0),
 		0,
 	)
+	const lastAttendanceLabel = profile.lastAttendance
+		? profile.lastAttendance.status === 'present'
+			? 'Keldi'
+			: 'Kelmadi'
+		: "Hali davomat yo'q"
 
 	return (
 		<>
@@ -2685,6 +2796,45 @@ function StudentDashboardPage({ token }) {
 				/>
 			</div>
 
+			<div className='student-insight-grid'>
+				<StudentInsightCard
+					icon='event_available'
+					label='Oxirgi davomat'
+					value={lastAttendanceLabel}
+					note={
+						profile.lastAttendance
+							? `${formatShortDate(profile.lastAttendance.date)} kuni belgilangan`
+							: "O'qituvchi hali davomat kiritmagan"
+					}
+					to='/student/attendance'
+					tone={profile.lastAttendance?.status === 'absent' ? 'danger' : 'success'}
+				/>
+				<StudentInsightCard
+					icon='payments'
+					label="Yaqin to'lov"
+					value={profile.nextPaymentDate ? formatShortDate(profile.nextPaymentDate) : 'Belgilanmagan'}
+					note={
+						debt > 0
+							? `Hozirgi qarzdorlik: ${formatMoney(debt)}`
+							: "To'lov jadvali bo'yicha holat yaxshi"
+					}
+					to='/student/payments'
+					tone={debt > 0 ? 'warning' : 'default'}
+				/>
+				<StudentInsightCard
+					icon='notifications'
+					label='Yangi bildirishnomalar'
+					value={`${profile.unreadNotifications || 0} ta`}
+					note={
+						profile.unreadNotifications
+							? "O'qilmagan ogohlantirishlar mavjud"
+							: "Hamma bildirishnomalar ko'rilgan"
+					}
+					to='/student/notifications'
+					tone={profile.unreadNotifications ? 'warning' : 'default'}
+				/>
+			</div>
+
 			<div className='student-grid'>
 				<section className='card balance-box'>
 					<div className='card-label-row'>
@@ -2695,10 +2845,13 @@ function StudentDashboardPage({ token }) {
 					</div>
 					<div className='student-balance'>{formatMoney(profile.balance)}</div>
 					<div className='student-actions'>
-						<ActionButton icon='add_circle'>To'ldirish</ActionButton>
-						<button type='button' className='square-btn icon-only-btn'>
+						<Link to='/student/payments' className='primary-link-btn'>
+							<Icon name='add_circle' />
+							To'lov qilish
+						</Link>
+						<Link to='/student/payments' className='square-btn icon-only-btn'>
 							<Icon name='history' />
-						</button>
+						</Link>
 					</div>
 				</section>
 
@@ -5207,11 +5360,29 @@ function ProtectedApp({ auth, meta, onLogout, onProfileUpdated }) {
 
 function AppInner() {
 	const navigate = useNavigate()
+	const location = useLocation()
 	const [auth, setAuth] = useState(() => {
 		const raw = localStorage.getItem('intelligent-auth')
 		return raw ? JSON.parse(raw) : null
 	})
 	const [meta, setMeta] = useState(null)
+
+	useEffect(() => {
+		if (auth?.token) return
+		const params = new URLSearchParams(location.search)
+		const studentToken = params.get('studentToken')
+		if (!studentToken) return
+		const next = params.get('next')
+		const redirectPath =
+			next && next.startsWith('/student/') ? next : '/student/dashboard'
+		const nextAuth = {
+			token: studentToken,
+			user: { role: 'student' },
+		}
+		localStorage.setItem('intelligent-auth', JSON.stringify(nextAuth))
+		setAuth(nextAuth)
+		navigate(redirectPath, { replace: true })
+	}, [auth?.token, location.search, navigate])
 
 	useEffect(() => {
 		if (!auth?.token) {
