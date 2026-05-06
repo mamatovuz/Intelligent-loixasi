@@ -3,9 +3,9 @@ import dayjs from "dayjs";
 import { Markup, Telegraf } from "telegraf";
 import { config } from "./config.js";
 import {
-  consumeTelegramCode,
-  createTelegramLinkCode,
   getStudentByTelegramId,
+  getStudentAuthByPhone,
+  linkTelegramStudentByCredentials,
   listDebtors,
   listPendingTelegramNotifications,
   listUpcomingPayments,
@@ -14,6 +14,7 @@ import {
 import { signToken } from "./auth.js";
 
 let bot = null;
+const linkFlowState = new Map();
 
 const studentKeyboard = Markup.keyboard([
   ["Kurs", "Balans"],
@@ -114,6 +115,18 @@ export async function sendTelegramCodeToStudent(telegramId, code, expiresAt) {
   }
 }
 
+function getLinkState(telegramId) {
+  return linkFlowState.get(String(telegramId)) || null;
+}
+
+function setLinkState(telegramId, payload) {
+  linkFlowState.set(String(telegramId), payload);
+}
+
+function clearLinkState(telegramId) {
+  linkFlowState.delete(String(telegramId));
+}
+
 export function startBot() {
   if (!config.telegramBotToken) {
     return null;
@@ -122,52 +135,77 @@ export function startBot() {
   bot = new Telegraf(config.telegramBotToken);
 
   bot.start(async (ctx) => {
+    clearLinkState(ctx.from.id);
     await safeReplyWithKeyboard(
       ctx,
-      "Assalomu alaykum. Intelligent botiga xush kelibsiz.\n\nTelefon raqamingizni +998901234567 formatida yuboring yoki menyudan foydalaning."
+      "Assalomu alaykum. Intelligent botiga xush kelibsiz.\n\nTelefon raqamingizni +998901234567 formatida yuboring."
     );
   });
 
   bot.hears(/^\+998\d{9}$/, async (ctx) => {
+    if (getStudentByTelegramId(ctx.from.id)) {
+      await safeReplyWithKeyboard(ctx, "Akkauntingiz allaqachon bog'langan. Menyudan foydalanishingiz mumkin.");
+      return;
+    }
+
     const phone = ctx.message.text.trim();
-    const data = createTelegramLinkCode(phone);
-
-    if (!data) {
-      await safeReply(ctx, "Bu raqam bo'yicha student topilmadi. Qabulxona bilan bog'laning.");
+    const normalizedPhone = phone.replace(/\s+/g, "");
+    const auth = getStudentAuthByPhone(normalizedPhone);
+    if (!auth) {
+      await safeReply(ctx, "Bu raqam bo'yicha ro'yxatdan o'tgan student topilmadi. Avval saytda registratsiyani yakunlang.");
       return;
     }
 
-    const delivered = await sendTelegramCodeToStudent(ctx.from.id, data.code, data.expiresAt);
-    if (!delivered) {
-      await safeReplyWithKeyboard(
-        ctx,
-        `Tasdiqlash kodi: ${data.code}\nAmal qilish muddati: ${dayjs(data.expiresAt).format("HH:mm")}\n\nKod 5 daqiqa ichida ishlaydi.`
-      );
-      return;
-    }
+    setLinkState(ctx.from.id, {
+      step: "awaiting_password",
+      phone: normalizedPhone,
+      startedAt: dayjs().valueOf()
+    });
 
-    await safeReplyWithKeyboard(ctx, "Tasdiqlash kodi yuborildi. Uni shu yerga yoki web saytga kiriting.");
+    await safeReply(ctx, "Telefon qabul qilindi. Endi saytda student sifatida ro'yxatdan o'tganda kiritgan parolingizni yozing.");
   });
 
-  bot.hears(/^\d{6}$/, async (ctx) => {
-    const code = ctx.message.text.trim();
-    const student = consumeTelegramCode(code, ctx.from.id);
+  bot.on("text", async (ctx, next) => {
+    const message = ctx.message?.text?.trim() || "";
+    if (!message || message.startsWith("/")) {
+      return next();
+    }
 
-    if (!student) {
-      await safeReply(ctx, "Kod noto'g'ri, muddati tugagan yoki allaqachon ishlatilgan.");
+    const state = getLinkState(ctx.from.id);
+    if (!state || state.step !== "awaiting_password") {
+      return next();
+    }
+
+    const startedAt = state.startedAt ? dayjs(state.startedAt) : null;
+    if (startedAt && dayjs().diff(startedAt, "minute") >= 10) {
+      clearLinkState(ctx.from.id);
+      await safeReply(ctx, "Bog'lash sessiyasi tugadi. Qaytadan /start bosing va telefon raqamingizni yuboring.");
       return;
     }
 
+    const student = linkTelegramStudentByCredentials({
+      phone: state.phone,
+      password: message,
+      telegramId: ctx.from.id
+    });
+
+    if (!student) {
+      await safeReply(ctx, "Parol noto'g'ri yoki bu telefon bo'yicha student topilmadi. Qaytadan urinib ko'ring.");
+      return;
+    }
+
+    clearLinkState(ctx.from.id);
     await safeReplyWithKeyboard(
       ctx,
-      "Bog'lash muvaffaqiyatli. Endi menyudan foydalanishingiz yoki kabinetni ochishingiz mumkin."
+      "Bog'lash muvaffaqiyatli. Telegram akkauntingiz student kabinet bilan ulandi."
     );
     await safeReplyWithInline(
       ctx,
       "Tezkor havolalar:",
       buildStudentInlineActions(student, {
         payment: true,
-        notifications: true
+        notifications: true,
+        schedule: true
       })
     );
   });

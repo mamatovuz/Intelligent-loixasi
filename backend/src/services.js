@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import dayjs from "dayjs";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
+import { comparePassword } from "./auth.js";
 
 const db = getDb();
 const uploadsDir = config.storagePath
@@ -818,6 +819,21 @@ export function getStudentAuthByPhone(phone) {
     JOIN students s ON s.id = sa.student_id
     WHERE REPLACE(sa.phone, ' ', '') = ?
   `).get(normalizePhone(phone));
+}
+
+export function linkTelegramStudentByCredentials({ phone, password, telegramId }) {
+  const auth = getStudentAuthByPhone(phone);
+  if (!auth || !comparePassword(password, auth.passwordHash)) {
+    return null;
+  }
+
+  const student = getStudentByUserId(auth.userId);
+  if (!student) {
+    return null;
+  }
+
+  db.prepare(`UPDATE users SET telegram_id = ? WHERE id = ?`).run(String(telegramId), auth.userId);
+  return getStudentByUserId(auth.userId);
 }
 
 function getNextLessonDateFromSchedule(schedule) {
