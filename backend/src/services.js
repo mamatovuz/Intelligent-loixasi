@@ -24,19 +24,19 @@ export function mapStudentRow(student) {
     id: student.id,
     fullName: student.fullName,
     phone: student.phone,
-    balance: student.balance,
-    status: student.status,
+    balance: Number(student.balance || 0),
+    status: student.status || "trial",
     enrolledAt: student.enrolledAt || null,
     trialRequired: Number(student.trialRequired || 3),
     paymentDueDate: student.paymentDueDate || null,
     trialProgress: Number(student.trialProgress || 0),
-    monthlyFee: student.monthlyFee,
-    courseId: student.courseId,
-    courseTitle: student.courseTitle,
-    schedule: student.schedule,
+    monthlyFee: Number(student.monthlyFee || 0),
+    courseId: student.courseId || null,
+    courseTitle: student.courseTitle || null,
+    schedule: student.schedule || null,
     teacherId: student.teacherId,
-    teacherName: student.teacherName,
-    lastPaymentDate: student.lastPaymentDate,
+    teacherName: student.teacherName || null,
+    lastPaymentDate: student.lastPaymentDate || null,
     telegramId: student.telegramId,
     isArchived: Boolean(student.isArchived),
     profileImage: student.profileImage || null
@@ -832,6 +832,7 @@ export function linkTelegramStudentByCredentials({ phone, password, telegramId }
     return null;
   }
 
+  db.prepare(`UPDATE users SET telegram_id = NULL WHERE telegram_id = ?`).run(String(telegramId));
   db.prepare(`UPDATE users SET telegram_id = ? WHERE id = ?`).run(String(telegramId), auth.userId);
   return getStudentByUserId(auth.userId);
 }

@@ -98,7 +98,7 @@ async function ensureLinkedStudent(ctx) {
 async function sendStudentSummary(ctx, student) {
   await safeReplyWithKeyboard(
     ctx,
-    `Kurs: ${student.courseTitle || "-"}\nUstoz: ${student.teacherName || "-"}\nDars vaqti: ${student.schedule || "-"}`
+    `Kurs: ${student.courseTitle || "Biriktirilmagan"}\nUstoz: ${student.teacherName || "Biriktirilmagan"}\nDars vaqti: ${student.schedule || "Biriktirilmagan"}`
   );
 }
 
@@ -136,6 +136,24 @@ export function startBot() {
 
   bot.start(async (ctx) => {
     clearLinkState(ctx.from.id);
+    const linkedStudent = getStudentByTelegramId(ctx.from.id);
+    if (linkedStudent) {
+      await safeReplyWithKeyboard(
+        ctx,
+        `Assalomu alaykum. Sizning akkauntingiz ${linkedStudent.fullName} bilan bog'langan.\n\nAgar boshqa student akkauntini ulashni istasangiz, yangi telefon raqam yuboring.`
+      );
+      await safeReplyWithInline(
+        ctx,
+        "Tezkor havolalar:",
+        buildStudentInlineActions(linkedStudent, {
+          payment: true,
+          notifications: true,
+          schedule: true
+        })
+      );
+      return;
+    }
+
     await safeReplyWithKeyboard(
       ctx,
       "Assalomu alaykum. Intelligent botiga xush kelibsiz.\n\nTelefon raqamingizni +998901234567 formatida yuboring."
@@ -143,11 +161,6 @@ export function startBot() {
   });
 
   bot.hears(/^\+998\d{9}$/, async (ctx) => {
-    if (getStudentByTelegramId(ctx.from.id)) {
-      await safeReplyWithKeyboard(ctx, "Akkauntingiz allaqachon bog'langan. Menyudan foydalanishingiz mumkin.");
-      return;
-    }
-
     const phone = ctx.message.text.trim();
     const normalizedPhone = phone.replace(/\s+/g, "");
     const auth = getStudentAuthByPhone(normalizedPhone);
@@ -197,7 +210,7 @@ export function startBot() {
     clearLinkState(ctx.from.id);
     await safeReplyWithKeyboard(
       ctx,
-      "Bog'lash muvaffaqiyatli. Telegram akkauntingiz student kabinet bilan ulandi."
+      `Bog'lash muvaffaqiyatli. Telegram akkauntingiz ${student.fullName} kabineti bilan ulandi.`
     );
     await safeReplyWithInline(
       ctx,
