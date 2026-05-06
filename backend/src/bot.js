@@ -241,7 +241,7 @@ export async function sendTelegramPaymentReceipt(receipt) {
 }
 
 export function startBot() {
-  if (!config.telegramBotToken) {
+  if (!config.telegramBotEnabled || !config.telegramBotToken) {
     return null;
   }
 
@@ -474,7 +474,22 @@ export function startBot() {
     );
   });
 
-  bot.launch();
+  bot.launch().catch((error) => {
+    const description =
+      error?.response?.description || error?.description || error?.message || "";
+
+    if (String(description).includes("terminated by other getUpdates request")) {
+      console.warn(
+        "Telegram polling conflict aniqlandi. Backend ishlashda davom etadi. Bitta bot instans qoldiring yoki TELEGRAM_BOT_ENABLED=false qiling."
+      );
+      return;
+    }
+
+    console.error("Telegram botni ishga tushirishda xato:", error);
+  });
+
+  process.once("SIGINT", () => bot?.stop("SIGINT"));
+  process.once("SIGTERM", () => bot?.stop("SIGTERM"));
 
   cron.schedule("0 9 * * *", async () => {
     if (!bot) return;

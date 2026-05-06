@@ -8,5 +8,8 @@ app.listen(config.port, () => {
   console.log(`Intelligent backend ishga tushdi: http://localhost:${config.port}`);
 });
 
-startBot();
-
+if (config.telegramBotEnabled) {
+  startBot();
+} else {
+  console.log("Telegram bot o'chirilgan: TELEGRAM_BOT_ENABLED=false");
+}

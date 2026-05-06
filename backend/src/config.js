@@ -20,6 +20,7 @@ export const config = {
     (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${process.env.PORT || 4000}`),
   storagePath,
   allowDemoSeed,
+  telegramBotEnabled: process.env.TELEGRAM_BOT_ENABLED !== "false",
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || "@Intelligent_uz_bot"
 };
