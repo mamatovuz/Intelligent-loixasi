@@ -152,6 +152,12 @@ export const api = {
       token,
       body: JSON.stringify({ expiresInSeconds })
     }),
+  createStudentAccessLink: (token, studentId, nextPath = "/student/profile") =>
+    request(`/reception/students/${studentId}/access-link`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ nextPath })
+    }),
   getStudentHistory: (token, studentId) => request(`/reception/students/${studentId}/history`, { token }),
   createPayment: (token, payload) =>
     request("/reception/payments", {

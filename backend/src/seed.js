@@ -3,4 +3,4 @@ import { migrate, seed } from "./db.js";
 migrate();
 seed();
 
-console.log("Demo ma'lumotlar yaratildi.");
+console.log("Seed yakunlandi. Bu script faqat lokal development/demo uchun ishlatiladi.");

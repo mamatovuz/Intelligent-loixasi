@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import bcrypt from "bcryptjs";
 import { authenticate, authorize, comparePassword, getUserProfile, signToken } from "./auth.js";
 import { config } from "./config.js";
-import { sendTelegramCodeToStudent } from "./bot.js";
+import { sendTelegramCodeToStudent, sendTelegramPaymentReceipt } from "./bot.js";
 import { buildDirectorPdfReport, buildDirectorWorkbook } from "./reports.js";
 import {
   addStudent,
@@ -13,6 +13,7 @@ import {
   changeStudentPassword,
   createContactRequest,
   createCourse,
+  createStudentAccessLink,
   createStudentRegistrationToken,
   createTeacher,
   createTelegramLinkCode,
@@ -307,6 +308,15 @@ router.post("/reception/students/:id/register-token", authenticate, authorize("r
   }
 });
 
+router.post("/reception/students/:id/access-link", authenticate, authorize("reception", "director"), (req, res) => {
+  try {
+    const data = createStudentAccessLink(Number(req.params.id), req.body.nextPath || "/student/profile");
+    res.json(data);
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Student access link yaratilmadi" });
+  }
+});
+
 router.delete("/reception/students/:id", authenticate, authorize("reception", "director"), (req, res) => {
   const deleted = deleteStudent(Number(req.params.id));
   if (!deleted) {
@@ -318,6 +328,11 @@ router.delete("/reception/students/:id", authenticate, authorize("reception", "d
 router.post("/reception/payments", authenticate, authorize("reception", "director"), (req, res) => {
   const { studentId, amount, method } = req.body;
   const receipt = recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id);
+  sendTelegramPaymentReceipt(receipt).then((sent) => {
+    if (sent && receipt.notificationId) {
+      markNotificationDelivered(receipt.notificationId);
+    }
+  }).catch(() => null);
   res.json({ message: "To'lov saqlandi", receipt });
 });
 
@@ -345,7 +360,12 @@ router.post("/payments/webhook", (req, res) => {
     return res.status(404).json({ message: "Student topilmadi" });
   }
 
-  recordPayment(student.id, Number(amount), provider, "paid", transactionId);
+  const receipt = recordPayment(student.id, Number(amount), provider, "paid", transactionId);
+  sendTelegramPaymentReceipt(receipt).then((sent) => {
+    if (sent && receipt.notificationId) {
+      markNotificationDelivered(receipt.notificationId);
+    }
+  }).catch(() => null);
   res.json({ message: "Webhook qabul qilindi" });
 });
 

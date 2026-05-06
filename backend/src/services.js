@@ -2,9 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import dayjs from "dayjs";
+import bcrypt from "bcryptjs";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
-import { comparePassword } from "./auth.js";
+import { comparePassword, signToken } from "./auth.js";
 
 const db = getDb();
 const uploadsDir = config.storagePath
@@ -104,7 +105,7 @@ function normalizePhone(value = "") {
 }
 
 function createNotification({ targetRole = null, targetUserId = null, type, title, message, metadata = null }) {
-  db.prepare(`
+  return db.prepare(`
     INSERT INTO notifications (target_role, target_user_id, type, title, message, metadata, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, 'unread', ?)
   `).run(
@@ -115,7 +116,7 @@ function createNotification({ targetRole = null, targetUserId = null, type, titl
     message,
     metadata ? JSON.stringify(metadata) : null,
     dayjs().format("YYYY-MM-DD HH:mm:ss")
-  );
+  ).lastInsertRowid;
 }
 
 function addStudentHistory(studentId, actorUserId, action, title, details) {
@@ -447,6 +448,7 @@ export function listBranches() {
 export function addStudent(payload, actorUserId = null) {
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const enrolledDate = dayjs().format("YYYY-MM-DD");
+  const defaultPasswordHash = bcrypt.hashSync("12345678", 10);
   const createUser = db.prepare(`
     INSERT INTO users (full_name, username, password_hash, phone, role, telegram_id, profile_image, created_at)
     VALUES (?, NULL, NULL, ?, 'student', NULL, NULL, ?)
@@ -475,6 +477,13 @@ export function addStudent(payload, actorUserId = null) {
     null,
     now
   ).lastInsertRowid;
+
+  db.prepare(`
+    INSERT INTO student_auth (student_id, phone, password_hash, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(studentId, normalizePhone(payload.phone), defaultPasswordHash, now, now);
+
+  db.prepare(`UPDATE students SET is_registered = 1 WHERE id = ?`).run(studentId);
 
   recalcStudentState(studentId);
   addStudentHistory(studentId, actorUserId, "created", "Student yaratildi", `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`);
@@ -518,6 +527,12 @@ export function updateStudent(studentId, payload, actorUserId = null) {
     SET full_name = ?, phone = ?
     WHERE id = (SELECT user_id FROM students WHERE id = ?)
   `).run(payload.fullName, payload.phone, studentId);
+
+  db.prepare(`
+    UPDATE student_auth
+    SET phone = ?, updated_at = ?
+    WHERE student_id = ?
+  `).run(normalizePhone(payload.phone), dayjs().format("YYYY-MM-DD HH:mm:ss"), studentId);
 
   db.prepare(`
     UPDATE students
@@ -581,6 +596,7 @@ export function deleteStudent(studentId) {
   db.prepare(`DELETE FROM payments WHERE student_id = ?`).run(studentId);
   db.prepare(`DELETE FROM attendance WHERE student_id = ?`).run(studentId);
   db.prepare(`DELETE FROM telegram_links WHERE student_id = ?`).run(studentId);
+  db.prepare(`DELETE FROM student_auth WHERE student_id = ?`).run(studentId);
   db.prepare(`DELETE FROM student_history WHERE student_id = ?`).run(studentId);
   db.prepare(`DELETE FROM students WHERE id = ?`).run(studentId);
   db.prepare(`DELETE FROM users WHERE id = ?`).run(student.userId);
@@ -616,7 +632,7 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
   recalcStudentState(studentId);
 
   const summary = db.prepare(`
-    SELECT u.full_name as fullName, u.phone, c.title as courseTitle
+    SELECT u.full_name as fullName, u.phone, u.telegram_id as telegramId, c.title as courseTitle
     FROM students s
     JOIN users u ON u.id = s.user_id
     LEFT JOIN courses c ON c.id = s.course_id
@@ -631,8 +647,9 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
     message: `${summary.fullName} - ${summary.courseTitle} uchun ${Number(amount).toLocaleString("ru-RU")} UZS`
   });
   const studentUser = db.prepare(`SELECT user_id as userId FROM students WHERE id = ?`).get(studentId);
+  let studentNotificationId = null;
   if (studentUser?.userId) {
-    createNotification({
+    studentNotificationId = createNotification({
       targetUserId: studentUser.userId,
       type: "payment_received",
       title: "To'lov qabul qilindi",
@@ -645,10 +662,12 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
     studentId,
     fullName: summary.fullName,
     phone: summary.phone,
+    telegramId: summary.telegramId || null,
     courseTitle: summary.courseTitle,
     amount: Number(amount),
     method,
-    paidAt: now
+    paidAt: now,
+    notificationId: studentNotificationId ? Number(studentNotificationId) : null
   };
 }
 
@@ -748,6 +767,30 @@ export function createStudentRegistrationToken(studentId, expiresInSeconds = 90)
     fullName: student.fullName,
     expiresAt,
     registerUrl: `${config.webUrl}/register?token=${token}`
+  };
+}
+
+export function createStudentAccessLink(studentId, nextPath = "/student/profile") {
+  const student = db.prepare(`
+    SELECT s.id, s.user_id as userId, u.full_name as fullName
+    FROM students s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.id = ?
+  `).get(studentId);
+
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+
+  const token = signToken({ id: student.userId, role: "student", fullName: student.fullName });
+  const query = new URLSearchParams({ studentToken: token });
+  if (nextPath) {
+    query.set("next", nextPath);
+  }
+
+  return {
+    token,
+    accessUrl: `${config.webUrl}/?${query.toString()}`
   };
 }
 

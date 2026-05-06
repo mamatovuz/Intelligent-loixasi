@@ -3360,7 +3360,7 @@ function ReceptionStudentsPage({ token, meta }) {
 				await api.createStudent(token, form)
 				await showSuccess(
 					'Qo‘shildi',
-					"Yangi o'quvchi muvaffaqiyatli qo'shildi",
+					"Yangi o'quvchi muvaffaqiyatli qo'shildi. Default student paroli: 12345678",
 				)
 			}
 			setStudentModal(null)
@@ -3422,16 +3422,17 @@ function ReceptionStudentsPage({ token, meta }) {
 
 	async function handleRegisterLink(studentId) {
 		try {
-			const data = await api.createStudentRegisterToken(token, studentId)
+			const data = await api.createStudentAccessLink(token, studentId, '/student/profile')
 			const result = await Swal.fire({
-				title: 'Student registratsiya havolasi',
+				title: 'Student kabinet havolasi',
 				html: `
 					<div class="register-link-preview">
-						<img class="register-link-qr" src="${getQrPreviewUrl(data.registerUrl)}" alt="QR code" />
+						<img class="register-link-qr" src="${getQrPreviewUrl(data.accessUrl)}" alt="QR code" />
 						<div class="register-link-body">
 							<div class="register-link-meta"><strong>Token:</strong> ${data.token}</div>
-							<div class="register-link-meta"><strong>Muddati:</strong> ${data.expiresAt}</div>
-							<a class="register-link-anchor" href="${data.registerUrl}" target="_blank" rel="noreferrer">${data.registerUrl}</a>
+							<div class="register-link-meta"><strong>Kirish:</strong> QR yoki link orqali student to'g'ridan-to'g'ri o'z profiliga kiradi.</div>
+							<div class="register-link-meta"><strong>Default parol:</strong> 12345678</div>
+							<a class="register-link-anchor" href="${data.accessUrl}" target="_blank" rel="noreferrer">${data.accessUrl}</a>
 						</div>
 					</div>
 				`,
@@ -3443,8 +3444,8 @@ function ReceptionStudentsPage({ token, meta }) {
 				width: 640,
 			})
 			if (result.isDenied) {
-				await copyText(data.registerUrl)
-				toast.fire({ icon: 'success', title: 'Registratsiya linki nusxalandi' })
+				await copyText(data.accessUrl)
+				toast.fire({ icon: 'success', title: 'Student kabinet linki nusxalandi' })
 			}
 		} catch (err) {
 			await showError(err.message)

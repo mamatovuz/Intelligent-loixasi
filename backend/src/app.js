@@ -7,7 +7,9 @@ import router from "./routes.js";
 
 export function createApp() {
   migrate();
-  seed();
+  if (config.allowDemoSeed) {
+    seed();
+  }
 
   const app = express();
   app.use(cors());
